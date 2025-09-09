@@ -235,28 +235,7 @@ youtube-analytics-cli/
 ✅ **Visibility Tracking**: Public, private, unlisted status detection  
 ✅ **YouTube Shorts**: Automatic detection of short-form content  
 ✅ **Traffic Sources**: Where your views come from (search, suggested, etc.)  
-✅ **Dislike Counts**: Available for authenticated video owners  
-
-### Show & Episode Management
-✅ **Regex Pattern Mapping**: Configure custom patterns for show detection  
-✅ **Episode Number extraction**: Automatic episode numbering from titles  
-✅ **Dry Run Mode**: Preview mappings before applying changes  
-✅ **Pattern Testing**: Test video titles against regex patterns  
-✅ **Content Filtering**: Exclude specific videos from analytics  
-
-### Interactive Dashboard
-✅ **Web Interface**: Streamlit-powered responsive dashboard  
-✅ **Interactive Charts**: Plotly visualizations with zoom and hover  
-✅ **Advanced Filters**: Show, episode range, and traffic source filtering  
-✅ **Trend Analysis**: 7-day rolling average overlays  
-✅ **Summary Metrics**: KPI cards with growth calculations  
-✅ **Data Export**: CSV downloads for further analysis  
-
-### Storage & Export
-✅ **Database Storage**: SQLite for easy analysis and querying  
-✅ **CSV Export**: For spreadsheet analysis and reporting  
-✅ **Verbose Mode**: Detailed progress tracking during collection  
-✅ **Batch Processing**: Handle large video collections with pagination  
+✅ **Dislike Counts**: Available for authenticated video owners
 
 ## Quick Start Guide
 
@@ -289,13 +268,3 @@ youtube-analytics-cli/
 - Use `-v` flag to monitor progress when processing many videos
 - Database automatically handles updates - existing videos are refreshed with new stats
 - Dashboard filters data in real-time - larger datasets may take longer to load
-
-### Virtual Environment
-```bash
-# Deactivate when done
-deactivate
-
-# Reactivate later
-source venv/bin/activate  # macOS/Linux
-# venv\Scripts\activate   # Windows
-```
