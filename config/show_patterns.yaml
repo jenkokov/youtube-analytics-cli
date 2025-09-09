@@ -1,0 +1,31 @@
+# Show and Episode Pattern Configuration
+# This file defines regex patterns to extract show names and episode numbers from video titles
+
+show_patterns:
+  # DOU News examples: "DOU News #123", "DOU News 123", "DOU NEWS #45"
+  # Extracts the last number found after "DOU News"
+  - name: "DOU News"
+    title_regex: "(?i)dou\\s+news"
+    episode_regex: "(?i)dou\\s+news.*\\D+(\\d+)(?!.*\\d)"
+    episode_group: 1
+    enabled: true
+
+  - name: "Stream"
+    title_regex: "(?i)dou\\s+stream"
+    episode_regex: "(?i)dou\\s+stream.*\\D+(\\d+)(?!.*\\d)"
+    episode_group: 1
+    enabled: true
+
+# Configuration options
+options:
+  # Only update videos where both show and episode_num are NULL
+  update_only_empty: true
+  
+  # Limit number of videos to process in one run (0 = no limit)
+  max_videos: 0
+  
+  # Show progress during processing
+  verbose: true
+  
+  # Dry run mode - show what would be updated without making changes
+  dry_run: false
