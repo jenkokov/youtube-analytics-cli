@@ -93,7 +93,7 @@ def video_stats(ctx, video_id, channel_id, max_videos, output, include_analytics
                     click.echo("  Getting traffic source analytics...")
                 traffic_sources = client.get_video_analytics(video_id, channel_id)
             
-            # Save immediately for single video
+            # Save immediately for a single video
             video_data = {'stats': video_stats, 'traffic_sources': traffic_sources}
             if output == 'console':
                 _display_video_stats(video_stats, traffic_sources)
@@ -120,7 +120,7 @@ def video_stats(ctx, video_id, channel_id, max_videos, output, include_analytics
                     if verbose:
                         click.echo(f"Show mapping failed: {e}")
         else:
-            # Get stats for all videos in channel
+            # Get stats for all videos in a channel
             if max_videos > 50 and not verbose:
                 click.echo(f"Collecting stats for up to {max_videos} videos...")
                 click.echo("Note: This will require multiple API requests. Use -v for detailed progress.")
