@@ -84,7 +84,7 @@ class YouTubeAnalyticsApp:
         
         if show_data.empty:
             st.sidebar.warning("No data available for selected show")
-            return None, None, None, None
+            return None, None, None
         
         # Episode range filter with default to exclude latest episode
         min_episode = int(show_data['episode_num'].min())
@@ -108,24 +108,9 @@ class YouTubeAnalyticsApp:
             (show_data['episode_num'] <= episode_range[1])
         ]
         
-        # Traffic source filter
-        show_video_ids = episode_filtered_data['video_id'].unique()
-        show_traffic_data = traffic_df[traffic_df['video_id'].isin(show_video_ids)]
-        
-        if not show_traffic_data.empty:
-            available_sources = sorted(show_traffic_data['traffic_source'].unique())
-            selected_sources = st.sidebar.multiselect(
-                "Traffic Sources:",
-                options=available_sources,
-                default=available_sources,
-                help="Select traffic sources to include in analysis"
-            )
-        else:
-            selected_sources = []
-        
-        return selected_show, episode_range, episode_filtered_data, selected_sources
+        return selected_show, episode_range, episode_filtered_data
     
-    def prepare_traffic_data(self, filtered_videos, traffic_df, selected_sources=None):
+    def prepare_traffic_data(self, filtered_videos, traffic_df):
         """Prepare traffic source data for visualization"""
         if filtered_videos.empty or traffic_df.empty:
             return pd.DataFrame()
@@ -140,10 +125,6 @@ class YouTubeAnalyticsApp:
         # Fill missing traffic sources with 'Direct' and 0 views
         merged_data['traffic_source'] = merged_data['traffic_source'].fillna('Direct')
         merged_data['views'] = merged_data['views'].fillna(0)
-        
-        # Filter by selected traffic sources
-        if selected_sources:
-            merged_data = merged_data[merged_data['traffic_source'].isin(selected_sources)]
         
         # Group by episode and traffic source
         traffic_summary = merged_data.groupby(['episode_num', 'traffic_source'])['views'].sum().reset_index()
@@ -184,15 +165,16 @@ class YouTubeAnalyticsApp:
                 row=1, col=1
             )
         
-        # Calculate 7-day rolling average of total views
-        total_views_by_episode = filtered_videos.groupby('episode_num')['view_count'].sum().reset_index()
+        # Calculate 7-day rolling average based on traffic source data
+        # Sum views across all traffic sources by episode
+        total_views_by_episode = traffic_summary.groupby('episode_num')['views'].sum().reset_index()
         total_views_by_episode = total_views_by_episode.sort_values('episode_num')
         
         # Calculate rolling average
         window_size = min(7, len(total_views_by_episode))
-        if window_size > 1:
+        if window_size > 1 and not total_views_by_episode.empty:
             total_views_by_episode['rolling_avg'] = (
-                total_views_by_episode['view_count']
+                total_views_by_episode['views']
                 .rolling(window=window_size, center=True, min_periods=1)
                 .mean()
             )
@@ -208,7 +190,9 @@ class YouTubeAnalyticsApp:
                     hovertemplate="<b>7-Day Rolling Average</b><br>" +
                                 "Episode: %{x}<br>" +
                                 "Avg Views: %{y:,.0f}<br>" +
-                                "<extra></extra>"
+                                "<extra></extra>",
+                    visible=True,
+                    legendgroup='rolling_avg'
                 ),
                 row=1, col=1
             )
@@ -242,7 +226,7 @@ class YouTubeAnalyticsApp:
         if filtered_videos.empty:
             return
         
-        col1, col2, col3, col4 = st.columns(4)
+        col1, col2, col3 = st.columns(3)
         
         with col1:
             total_episodes = len(filtered_videos)
@@ -255,13 +239,7 @@ class YouTubeAnalyticsApp:
         with col3:
             avg_views = filtered_videos['view_count'].mean()
             st.metric("Average Views", f"{avg_views:,.0f}")
-        
-        with col4:
-            if len(filtered_videos) > 1:
-                latest_views = filtered_videos.iloc[-1]['view_count']
-                previous_views = filtered_videos.iloc[-2]['view_count']
-                growth = ((latest_views - previous_views) / previous_views) * 100
-                st.metric("Latest Episode Growth", f"{growth:+.1f}%")
+
     
     def export_to_csv(self, filtered_videos, traffic_summary, selected_show):
         """Create CSV export functionality"""
@@ -308,13 +286,13 @@ class YouTubeAnalyticsApp:
             return
         
         # Create controls
-        selected_show, episode_range, filtered_videos, selected_sources = self.create_controls(videos_df, traffic_df)
+        selected_show, episode_range, filtered_videos = self.create_controls(videos_df, traffic_df)
         
         if filtered_videos is None or filtered_videos.empty:
             return
         
         # Prepare traffic data
-        traffic_summary = self.prepare_traffic_data(filtered_videos, traffic_df, selected_sources)
+        traffic_summary = self.prepare_traffic_data(filtered_videos, traffic_df)
         
         # Show summary metrics
         self.create_summary_metrics(filtered_videos, traffic_summary)

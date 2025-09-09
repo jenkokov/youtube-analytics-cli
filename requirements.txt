@@ -31,3 +31,4 @@ urllib3==2.5.0
 PyYAML==6.0.2
 streamlit
 plotly==5.19.0
+pygwalker
