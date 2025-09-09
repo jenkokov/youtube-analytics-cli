@@ -29,5 +29,5 @@ tzdata==2025.2
 uritemplate==4.2.0
 urllib3==2.5.0
 PyYAML==6.0.2
-streamlit==1.32.0
+streamlit
 plotly==5.19.0
