@@ -261,20 +261,23 @@ class YouTubeClient:
             
             # Get best available thumbnail
             thumbnail_url = self._get_best_thumbnail(snippet.get('thumbnails', {}))
-            
+
             # Determine if video is a YouTube Short
             duration_seconds = self._parse_duration(content_details['duration'])
-            
+
             # Multiple detection methods for YouTube Shorts
             is_short = self._detect_youtube_short(
-                duration_seconds, 
-                content_details, 
-                snippet, 
-                status, 
+                duration_seconds,
+                content_details,
+                snippet,
+                status,
                 recording_details
             )
-            
-            
+
+            # Get tags if available and format as comma-separated string
+            tags = snippet.get('tags', [])
+            tags_string = ', '.join(tags) if tags else None
+
             stats = {
                 'video_id': video_id,
                 'channel_id': snippet['channelId'],
@@ -290,6 +293,8 @@ class YouTubeClient:
                 'visibility': visibility,
                 'is_short': is_short,
                 'thumbnail_url': thumbnail_url,
+                'tags': tags_string,
+                'subscriber_count': None,  # Will be populated by analytics API
             }
             
             return stats
@@ -298,16 +303,18 @@ class YouTubeClient:
             raise Exception(f"Failed to get video stats: {e}")
     
     def get_video_analytics(self, video_id, channel_id=None, start_date='2023-01-01', end_date='2025-12-31'):
-        """Get analytics data including traffic sources for a specific video"""
+        """Get analytics data including traffic sources and subscriber acquisition for a specific video"""
         if not self.analytics:
             return {}
-        
+
         if not channel_id:
             channel_id = self._get_my_channel_id()
-        
+
+        analytics_data = {}
+
         try:
             # Get traffic sources
-            request = self.analytics.reports().query(
+            traffic_request = self.analytics.reports().query(
                 ids=f'channel=={channel_id}',
                 startDate=start_date,
                 endDate=end_date,
@@ -316,17 +323,42 @@ class YouTubeClient:
                 filters=f'video=={video_id}',
                 sort='-views'
             )
-            response = request.execute()
-            
+            traffic_response = traffic_request.execute()
+
             traffic_sources = {}
-            if response.get('rows'):
-                for row in response['rows']:
+            if traffic_response.get('rows'):
+                for row in traffic_response['rows']:
                     traffic_source = row[0]
                     views = int(row[1])
                     traffic_sources[traffic_source] = views
-            
-            return traffic_sources
-            
+
+            analytics_data['traffic_sources'] = traffic_sources
+
+            # Get subscriber acquisition data - subscribers gained from this specific video
+            try:
+                subscriber_request = self.analytics.reports().query(
+                    ids=f'channel=={channel_id}',
+                    startDate=start_date,
+                    endDate=end_date,
+                    metrics='subscribersGained',
+                    filters=f'video=={video_id}'
+                )
+                subscriber_response = subscriber_request.execute()
+
+                subscribers_gained = 0
+                if subscriber_response.get('rows'):
+                    # Sum all subscriber gains from this video
+                    subscribers_gained = sum(int(row[0]) for row in subscriber_response['rows'])
+
+                analytics_data['subscribers_gained'] = subscribers_gained
+
+            except HttpError as e:
+                # Subscriber analytics might not be available for all videos
+                print(f"Warning: Could not get subscriber data for video {video_id}: {e}")
+                analytics_data['subscribers_gained'] = None
+
+            return analytics_data
+
         except HttpError as e:
             # If analytics fails, return empty dict but don't fail the whole operation
             print(f"Warning: Could not get analytics data for video {video_id}: {e}")
@@ -361,8 +393,14 @@ class YouTubeClient:
                 if include_analytics and self.analytics:
                     if verbose:
                         print(f"  Getting analytics data...")
-                    traffic_sources = self.get_video_analytics(video['video_id'], channel_id)
-                
+                    analytics_data = self.get_video_analytics(video['video_id'], channel_id)
+                    traffic_sources = analytics_data.get('traffic_sources', {})
+                    subscribers_gained = analytics_data.get('subscribers_gained')
+
+                    # Add subscriber data to video stats
+                    if subscribers_gained is not None:
+                        video_stats['subscriber_count'] = subscribers_gained
+
                 video_data = {
                     'stats': video_stats,
                     'traffic_sources': traffic_sources

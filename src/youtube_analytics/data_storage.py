@@ -55,10 +55,22 @@ class DataStorage:
                     episode_num INTEGER DEFAULT NULL,
                     thumbnail_url TEXT DEFAULT NULL,
                     exclude_from_stats INTEGER DEFAULT 0,
+                    tags TEXT DEFAULT NULL,
+                    subscriber_count INTEGER DEFAULT NULL,
                     collected_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                     last_updated TIMESTAMP DEFAULT CURRENT_TIMESTAMP
                 )
             ''')
+
+            # Add new columns to existing table if they don't exist
+            cursor.execute("PRAGMA table_info(video_stats)")
+            columns = [column[1] for column in cursor.fetchall()]
+
+            if 'tags' not in columns:
+                cursor.execute('ALTER TABLE video_stats ADD COLUMN tags TEXT DEFAULT NULL')
+
+            if 'subscriber_count' not in columns:
+                cursor.execute('ALTER TABLE video_stats ADD COLUMN subscriber_count INTEGER DEFAULT NULL')
             
             # Traffic source analytics table
             cursor.execute('''
@@ -182,11 +194,11 @@ class DataStorage:
             if existing:
                 # Update existing video
                 cursor.execute('''
-                    UPDATE video_stats 
-                    SET channel_id = ?, title = ?, description = ?, upload_time = ?, 
-                        duration = ?, watch_url = ?, view_count = ?, like_count = ?, 
-                        dislike_count = ?, comment_count = ?, visibility = ?, is_short = ?, thumbnail_url = ?, 
-                        last_updated = CURRENT_TIMESTAMP
+                    UPDATE video_stats
+                    SET channel_id = ?, title = ?, description = ?, upload_time = ?,
+                        duration = ?, watch_url = ?, view_count = ?, like_count = ?,
+                        dislike_count = ?, comment_count = ?, visibility = ?, is_short = ?, thumbnail_url = ?,
+                        tags = ?, subscriber_count = ?, last_updated = CURRENT_TIMESTAMP
                     WHERE video_id = ?
                 ''', (
                     video_stats['channel_id'],
@@ -202,15 +214,17 @@ class DataStorage:
                     video_stats.get('visibility'),
                     video_stats.get('is_short', False),
                     video_stats.get('thumbnail_url'),
+                    video_stats.get('tags'),
+                    video_stats.get('subscriber_count'),
                     video_stats['video_id']
                 ))
             else:
                 # Insert new video
                 cursor.execute('''
-                    INSERT INTO video_stats 
-                    (video_id, channel_id, title, description, upload_time, duration, 
-                     watch_url, view_count, like_count, dislike_count, comment_count, visibility, is_short, thumbnail_url)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    INSERT INTO video_stats
+                    (video_id, channel_id, title, description, upload_time, duration,
+                     watch_url, view_count, like_count, dislike_count, comment_count, visibility, is_short, thumbnail_url, tags, subscriber_count)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 ''', (
                     video_stats['video_id'],
                     video_stats['channel_id'],
@@ -225,7 +239,9 @@ class DataStorage:
                     video_stats['comment_count'],
                     video_stats.get('visibility'),
                     video_stats.get('is_short', False),
-                    video_stats.get('thumbnail_url')
+                    video_stats.get('thumbnail_url'),
+                    video_stats.get('tags'),
+                    video_stats.get('subscriber_count')
                 ))
             
             # Save traffic sources if provided

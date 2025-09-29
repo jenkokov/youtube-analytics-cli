@@ -30,10 +30,10 @@ def channel_stats(ctx, channel_id, output):
         auth = YouTubeAuth()
         youtube_service = auth.get_youtube_service()
         analytics_service = auth.get_analytics_service()
-        
+
         client = YouTubeClient(youtube_service, analytics_service)
         storage = DataStorage(ctx.obj['data_dir'])
-        
+
         # Get channel stats
         stats = client.get_channel_stats(channel_id)
         
@@ -45,9 +45,11 @@ def channel_stats(ctx, channel_id, output):
         elif output == 'sqlite':
             storage.save_channel_stats_db(stats)
             click.echo("Channel stats saved to database")
-            
+
     except Exception as e:
         click.echo(f"Error: {e}", err=True)
+        if 'invalid_grant' in str(e) or 'Bad Request' in str(e):
+            click.echo("This looks like an expired token. Run: python -m src.youtube_analytics.cli reauth")
         exit(1)
 
 def _display_channel_stats(stats):
@@ -91,7 +93,13 @@ def video_stats(ctx, video_id, channel_id, max_videos, output, include_analytics
             if include_analytics and analytics_service:
                 if verbose:
                     click.echo("  Getting traffic source analytics...")
-                traffic_sources = client.get_video_analytics(video_id, channel_id)
+                analytics_data = client.get_video_analytics(video_id, channel_id)
+                traffic_sources = analytics_data.get('traffic_sources', {})
+                subscribers_gained = analytics_data.get('subscribers_gained')
+
+                # Add subscriber data to video stats
+                if subscribers_gained is not None:
+                    video_stats['subscriber_count'] = subscribers_gained
             
             # Save immediately for a single video
             video_data = {'stats': video_stats, 'traffic_sources': traffic_sources}
@@ -172,9 +180,11 @@ def video_stats(ctx, video_id, channel_id, max_videos, output, include_analytics
             click.echo(f"Saved {saved_count} video stats to data/exports/video_stats.csv")
         elif output == 'sqlite':
             click.echo(f"Saved {saved_count} video stats to data/youtube_analytics.sqlite")
-        
+
     except Exception as e:
         click.echo(f"Error: {e}", err=True)
+        if 'invalid_grant' in str(e) or 'Bad Request' in str(e):
+            click.echo("This looks like an expired token. Run: python -m src.youtube_analytics.cli reauth")
         exit(1)
 
 def _format_duration(seconds):
@@ -219,7 +229,15 @@ def _display_video_stats(video_stats, traffic_sources=None):
         click.echo(f"Type: {video_type} ({visibility.title()})")
     else:
         click.echo(f"Type: {video_type}")
-    
+
+    # Show tags if available
+    if video_stats.get('tags'):
+        click.echo(f"Tags: {video_stats['tags']}")
+
+    # Show subscriber acquisition data
+    if video_stats.get('subscriber_count') is not None:
+        click.echo(f"New Subscribers: {video_stats['subscriber_count']:,}")
+
     if traffic_sources:
         click.echo("\nTraffic Sources:")
         for source, views in sorted(traffic_sources.items(), key=lambda x: x[1], reverse=True):
@@ -288,7 +306,7 @@ def test_pattern(ctx, title, config_file):
 def setup(ctx):
     """Set up authentication and configuration"""
     click.echo("Setting up YouTube Analytics CLI...")
-    
+
     # Check if .env exists
     if not os.path.exists('.env'):
         click.echo("Creating .env file from template...")
@@ -298,7 +316,7 @@ def setup(ctx):
             click.echo("Please edit .env file with your YouTube API credentials")
         else:
             click.echo("Please create a .env file with your YouTube API credentials")
-    
+
     # Test authentication
     try:
         auth = YouTubeAuth()
@@ -306,7 +324,32 @@ def setup(ctx):
         click.echo("✓ Authentication successful!")
     except Exception as e:
         click.echo(f"✗ Authentication failed: {e}")
-        click.echo("Please check your credentials and try again")
+        if 'invalid_grant' in str(e):
+            click.echo("This looks like an expired token. Try: python -m src.youtube_analytics.cli reauth")
+        else:
+            click.echo("Please check your credentials and try again")
+
+@cli.command()
+@click.pass_context
+def reauth(ctx):
+    """Re-authenticate by forcing a new login (fixes expired tokens)"""
+    click.echo("Re-authenticating with YouTube APIs...")
+
+    try:
+        # Remove existing token to force new authentication
+        token_path = 'config/token.pickle'
+        if os.path.exists(token_path):
+            os.remove(token_path)
+            click.echo("Removed expired token file")
+
+        auth = YouTubeAuth()
+        auth.authenticate(force_refresh=True)
+        click.echo("✓ Re-authentication successful!")
+        click.echo("You can now use the CLI commands normally.")
+
+    except Exception as e:
+        click.echo(f"✗ Re-authentication failed: {e}")
+        click.echo("Please check your credentials in .env file and try again")
 
 def main():
     """Entry point for the CLI"""
