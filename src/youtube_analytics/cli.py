@@ -1,9 +1,9 @@
 import click
 import os
-from .auth import YouTubeAuth
-from .data_storage import DataStorage
-from .youtube_client import YouTubeClient
-from .show_mapper import ShowMapper
+from auth import YouTubeAuth
+from data_storage import DataStorage
+from youtube_client import YouTubeClient
+from show_mapper import ShowMapper
 
 @click.group()
 @click.option('--config-dir', default='config', help='Configuration directory')

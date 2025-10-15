@@ -10,6 +10,17 @@ This is a YouTube Analytics CLI tool that collects YouTube Studio analytics data
 
 ### Environment Setup
 ```bash
+# Install dependencies and create virtual environment (using uv)
+uv sync
+
+# Initial setup and authentication test
+uv run python -m src.youtube_analytics.cli setup
+# Or use the console script entry point
+uv run youtube-analytics setup
+```
+
+**Legacy setup (if not using uv)**:
+```bash
 # Create and activate virtual environment
 python -m venv venv
 source venv/bin/activate  # macOS/Linux
@@ -25,28 +36,33 @@ python -m src.youtube_analytics.cli setup
 ### Running the CLI
 ```bash
 # Basic channel statistics
-python -m src.youtube_analytics.cli channel-stats
+uv run youtube-analytics channel-stats
 
 # Video statistics with pagination support
-python -m src.youtube_analytics.cli video-stats --max-videos 500 -v
+uv run youtube-analytics video-stats --max-videos 500 -v
 
 # Specific video analysis
-python -m src.youtube_analytics.cli video-stats --video-id dQw4w9WgXcQ
+uv run youtube-analytics video-stats --video-id dQw4w9WgXcQ
 
 # Different output formats
-python -m src.youtube_analytics.cli video-stats --output sqlite
-python -m src.youtube_analytics.cli video-stats --output csv
-python -m src.youtube_analytics.cli video-stats --output console
+uv run youtube-analytics video-stats --output sqlite
+uv run youtube-analytics video-stats --output csv
+uv run youtube-analytics video-stats --output console
 
 # Show and episode mapping
-python -m src.youtube_analytics.cli update-shows --dry-run  # Preview changes
-python -m src.youtube_analytics.cli update-shows           # Apply changes
-python -m src.youtube_analytics.cli list-patterns          # View regex patterns
-python -m src.youtube_analytics.cli test-pattern "DOU News #123"  # Test title
+uv run youtube-analytics update-shows --dry-run  # Preview changes
+uv run youtube-analytics update-shows           # Apply changes
+uv run youtube-analytics list-patterns          # View regex patterns
+uv run youtube-analytics test-pattern "DOU News #123"  # Test title
 
 # Interactive dashboard
-python run_dashboard.py                                     # Launch Streamlit dashboard
-streamlit run streamlit_app.py                             # Alternative launch method
+uv run python run_dashboard.py                  # Launch Streamlit dashboard
+uv run streamlit run streamlit_app.py           # Alternative launch method
+```
+
+**Alternative: using module syntax**
+```bash
+uv run python -m src.youtube_analytics.cli <command>
 ```
 
 ### Authentication Setup
@@ -186,10 +202,10 @@ The system includes a web-based dashboard built with Streamlit for interactive d
 ### Launch Dashboard
 ```bash
 # Recommended method (includes checks)
-python run_dashboard.py
+uv run python run_dashboard.py
 
 # Direct method
-streamlit run streamlit_app.py
+uv run streamlit run streamlit_app.py
 ```
 
 ### Dashboard Components

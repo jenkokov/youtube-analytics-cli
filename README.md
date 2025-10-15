@@ -4,49 +4,52 @@ A comprehensive tool for collecting YouTube Studio analytics data locally, with 
 
 ## Prerequisites
 
-- Python 3.8 or higher
+- Python 3.9 or higher
 - Google Cloud Console account
+- [uv](https://docs.astral.sh/uv/) package manager (recommended) or pip
 
 ## Setup
 
-### 1. Clone and navigate to the project
+### Quick Start (with uv - recommended)
+
 ```bash
+# 1. Navigate to the project
 cd youtube-analytics-cli
+
+# 2. Install dependencies and create virtual environment
+uv sync
+
+# 3. Configure environment
+cp .env.example .env
+# Edit .env with your Google Cloud Console credentials
+
+# 4. Run initial setup
+uv run youtube-analytics setup
 ```
 
-### 2. Create and activate virtual environment
+### Alternative Setup (with pip)
+
 ```bash
-# Create virtual environment
+# 1. Navigate to the project
+cd youtube-analytics-cli
+
+# 2. Create and activate virtual environment
 python -m venv venv
+source venv/bin/activate  # macOS/Linux
+# venv\Scripts\activate   # Windows
 
-# Activate virtual environment
-# On macOS/Linux:
-source venv/bin/activate
-# On Windows:
-# venv\Scripts\activate
-```
-
-### 3. Install dependencies
-```bash
+# 3. Install dependencies
 pip install -r requirements.txt
 ```
 
-### 4. Set up Google Cloud Console
+### Google Cloud Console Setup
+
 1. Go to [Google Cloud Console](https://console.cloud.google.com/)
 2. Create a new project or select an existing one
 3. Enable the **YouTube Data API v3** and **YouTube Analytics API**
 4. Go to **Credentials** → **Create Credentials** → **OAuth 2.0 Client ID**
 5. Choose **Desktop Application** as the application type
-6. Download the credentials JSON file (optional - you can use environment variables instead)
-
-### 5. Configure environment
-```bash
-# Copy the environment template
-cp .env.example .env
-
-# Edit .env file with your credentials
-# You need to add your CLIENT_ID and CLIENT_SECRET from Google Cloud Console
-```
+6. Download the credentials (use environment variables in `.env` file)
 
 Your `.env` file should look like:
 ```env
@@ -55,48 +58,43 @@ YOUTUBE_CLIENT_SECRET=your_client_secret_here
 DEFAULT_CHANNEL_ID=your_channel_id_here
 ```
 
-### 6. Run initial setup
-```bash
-python -m src.youtube_analytics.cli setup
-```
-
-This will test authentication and guide you through the OAuth flow.
-
 ## Usage
+
+> **Note**: The examples below use `uv run`. If you're using pip/venv, activate your virtual environment and remove `uv run` from commands (e.g., `youtube-analytics channel-stats`).
 
 ### Get Channel Statistics
 ```bash
 # Display stats in console
-python -m src.youtube_analytics.cli channel-stats
+uv run youtube-analytics channel-stats
 
 # Save to CSV
-python -m src.youtube_analytics.cli channel-stats --output csv
+uv run youtube-analytics channel-stats --output csv
 
 # Save to SQLite database
-python -m src.youtube_analytics.cli channel-stats --output sqlite
+uv run youtube-analytics channel-stats --output sqlite
 
 # Specify a different channel ID
-python -m src.youtube_analytics.cli channel-stats --channel-id UCxxxxxxxxxxxxxxxxx
+uv run youtube-analytics channel-stats --channel-id UCxxxxxxxxxxxxxxxxx
 ```
 
 ### Get Video Statistics
 ```bash
 # Get stats for all videos in your channel (default 25 videos)
-python -m src.youtube_analytics.cli video-stats
+uv run youtube-analytics video-stats
 
 # Get stats for a specific video
-python -m src.youtube_analytics.cli video-stats --video-id dQw4w9WgXcQ
+uv run youtube-analytics video-stats --video-id dQw4w9WgXcQ
 
 # Get more videos with verbose output
-python -m src.youtube_analytics.cli video-stats --max-videos 50 -v
+uv run youtube-analytics video-stats --max-videos 50 -v
 
 # Different output formats
-python -m src.youtube_analytics.cli video-stats --output console
-python -m src.youtube_analytics.cli video-stats --output csv
-python -m src.youtube_analytics.cli video-stats --output sqlite
+uv run youtube-analytics video-stats --output console
+uv run youtube-analytics video-stats --output csv
+uv run youtube-analytics video-stats --output sqlite
 
 # Skip traffic source analytics (faster)
-python -m src.youtube_analytics.cli video-stats --no-analytics
+uv run youtube-analytics video-stats --no-analytics
 ```
 
 ### Show and Episode Mapping
@@ -104,16 +102,16 @@ Map show names and episode numbers from video titles using regex patterns:
 
 ```bash
 # View current patterns
-python -m src.youtube_analytics.cli list-patterns
+uv run youtube-analytics list-patterns
 
 # Test a title against patterns
-python -m src.youtube_analytics.cli test-pattern "DOU News #123"
+uv run youtube-analytics test-pattern "DOU News #123"
 
 # Preview what would be mapped (dry run)
-python -m src.youtube_analytics.cli update-shows --dry-run
+uv run youtube-analytics update-shows --dry-run
 
 # Apply the mapping
-python -m src.youtube_analytics.cli update-shows
+uv run youtube-analytics update-shows
 ```
 
 Edit `config/show_patterns.yaml` to customize regex patterns for your shows.
@@ -124,10 +122,10 @@ Launch a web-based dashboard for interactive data visualization and analysis:
 
 ```bash
 # Recommended method (includes validation)
-python run_dashboard.py
+uv run python run_dashboard.py
 
 # Alternative direct launch
-streamlit run streamlit_app.py
+uv run streamlit run streamlit_app.py
 ```
 
 ### Dashboard Features
@@ -239,11 +237,12 @@ youtube-analytics-cli/
 
 ## Quick Start Guide
 
-1. **Setup**: Follow installation and authentication steps above
-2. **Collect Data**: `python -m src.youtube_analytics.cli video-stats`
-3. **Map Shows**: Edit `config/show_patterns.yaml` then run `update-shows`
-4. **Launch Dashboard**: `python run_dashboard.py`
-5. **Analyze**: Use interactive filters and export data as needed
+1. **Setup**: `uv sync` and configure `.env` file
+2. **Authenticate**: `uv run youtube-analytics setup`
+3. **Collect Data**: `uv run youtube-analytics video-stats`
+4. **Map Shows**: Edit `config/show_patterns.yaml` then run `uv run youtube-analytics update-shows`
+5. **Launch Dashboard**: `uv run python run_dashboard.py`
+6. **Analyze**: Use interactive filters and export data as needed
 
 ## Troubleshooting
 
@@ -258,10 +257,10 @@ youtube-analytics-cli/
 - The tool will create `config/` and `data/` directories automatically
 
 ### Dashboard Issues
-- **"No data available"**: Run `video-stats` command first to collect data
+- **"No data available"**: Run `uv run youtube-analytics video-stats` command first to collect data
 - **Empty dashboard**: Ensure videos have show/episode mapping completed
 - **Port conflicts**: Dashboard runs on localhost:8501 by default
-- **Streamlit not found**: Install dependencies with `pip install -r requirements.txt`
+- **Streamlit not found**: Run `uv sync` to install dependencies
 
 ### Performance Notes
 - Use `--no-analytics` flag to skip traffic source data for faster processing

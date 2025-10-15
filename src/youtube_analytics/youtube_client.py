@@ -1,6 +1,5 @@
 import os
 import re
-import requests
 from googleapiclient.errors import HttpError
 from dotenv import load_dotenv
 
