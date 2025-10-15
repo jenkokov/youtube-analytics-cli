@@ -50,3 +50,5 @@ uv.lock
 # OS
 .DS_Store
 Thumbs.db
+/src/youtube_analytics/config/token.pickle
+/src/youtube_analytics/config/credentials.json
