@@ -1,9 +1,10 @@
 import click
 import os
-from auth import YouTubeAuth
-from data_storage import DataStorage
-from youtube_client import YouTubeClient
-from show_mapper import ShowMapper
+from .auth import YouTubeAuth
+from .data_storage import DataStorage
+from .youtube_client import YouTubeClient
+from .show_mapper import ShowMapper
+from .caption_downloader import CaptionDownloader
 
 @click.group()
 @click.option('--config-dir', default='config', help='Configuration directory')
@@ -350,6 +351,89 @@ def reauth(ctx):
     except Exception as e:
         click.echo(f"✗ Re-authentication failed: {e}")
         click.echo("Please check your credentials in .env file and try again")
+
+@cli.command()
+@click.option('--video-ids', required=True, help='Comma-separated video IDs')
+@click.option('--language', default='uk', help='Caption language code (default: uk)')
+@click.option('--format', type=click.Choice(['txt', 'vtt', 'srt', 'sbv']),
+              default='txt', help='Caption format (default: txt - plain text transcript)')
+@click.option('--output-dir', default='data/captions', help='Output directory')
+@click.option('-v', '--verbose', is_flag=True, help='Verbose progress output')
+@click.pass_context
+def download_captions(ctx, video_ids, language, format, output_dir, verbose):
+    """Download captions for specified videos
+
+    Example:
+        youtube-analytics download-captions --video-ids 'abc123,def456,ghi789' -v
+    """
+    try:
+        # Parse comma-separated video IDs
+        video_id_list = [vid.strip() for vid in video_ids.split(',')]
+
+        if verbose:
+            click.echo("Authenticating with YouTube API (caption mode)...")
+
+        # Initialize auth with caption scope
+        auth = YouTubeAuth(scope_mode='captions')
+        youtube_service = auth.get_youtube_service()
+
+        if verbose:
+            click.echo("✓ Authentication successful\n")
+            format_desc = "plain text transcripts" if format == 'txt' else f"{format.upper()} captions"
+            click.echo(f"Downloading {format_desc} for {len(video_id_list)} videos...")
+
+        # Create caption downloader
+        downloader = CaptionDownloader(youtube_service, output_dir)
+
+        # Download captions
+        stats = downloader.download_captions_batch(
+            video_id_list,
+            language_code=language,
+            format=format,
+            verbose=verbose
+        )
+
+        # Display summary
+        click.echo("\n" + "="*50)
+        click.echo("SUMMARY")
+        click.echo("="*50)
+        click.echo(f"Total videos: {len(video_id_list)}")
+        click.echo(f"Successfully downloaded: {stats['successful']}")
+        if stats['skipped'] > 0:
+            click.echo(f"Already exists (skipped): {stats['skipped']}")
+        if stats['no_captions'] > 0:
+            click.echo(f"No {language.upper()} captions found: {stats['no_captions']}")
+        if stats['permission_denied'] > 0:
+            click.echo(f"Failed (permission denied): {stats['permission_denied']}")
+            click.echo("\nNote: You can only download captions from videos you own.")
+        if stats['failed'] > 0:
+            click.echo(f"Failed (other errors): {stats['failed']}")
+
+        if stats['successful'] > 0:
+            click.echo(f"\n✓ Captions saved to: {output_dir}")
+
+        # Display failed IDs in CSV format for easy retry
+        all_failed_ids = stats['failed_ids'] + stats['no_captions_ids'] + stats['permission_denied_ids']
+        if all_failed_ids:
+            click.echo("\n" + "="*50)
+            click.echo("FAILED VIDEO IDs (CSV format - copy to retry)")
+            click.echo("="*50)
+            click.echo(','.join(all_failed_ids))
+
+            # Show breakdown if verbose
+            if verbose:
+                if stats['failed_ids']:
+                    click.echo(f"\nFailed (errors): {','.join(stats['failed_ids'])}")
+                if stats['no_captions_ids']:
+                    click.echo(f"No captions: {','.join(stats['no_captions_ids'])}")
+                if stats['permission_denied_ids']:
+                    click.echo(f"Permission denied: {','.join(stats['permission_denied_ids'])}")
+
+    except Exception as e:
+        click.echo(f"Error: {e}", err=True)
+        if 'invalid_grant' in str(e) or 'Bad Request' in str(e):
+            click.echo("This looks like an expired token. Try deleting config/token_captions.pickle and run again.")
+        exit(1)
 
 def main():
     """Entry point for the CLI"""

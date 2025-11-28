@@ -2,6 +2,7 @@
 .env
 config/credentials.json
 config/token.pickle
+config/token_*.pickle
 
 # Data files
 data/

@@ -11,16 +11,34 @@ from dotenv import load_dotenv
 load_dotenv()
 
 # YouTube API scopes
-SCOPES = [
+SCOPES_READONLY = [
     'https://www.googleapis.com/auth/youtube.readonly',
     'https://www.googleapis.com/auth/yt-analytics.readonly'
 ]
 
+SCOPES_CAPTIONS = [
+    'https://www.googleapis.com/auth/youtube.force-ssl'
+]
+
+# Backward compatibility
+SCOPES = SCOPES_READONLY
+
 class YouTubeAuth:
-    def __init__(self, credentials_file=None):
+    def __init__(self, credentials_file=None, scope_mode='readonly'):
         self.credentials_file = credentials_file or 'config/credentials.json'
-        self.token_file = 'config/token.pickle'
+        self.scope_mode = scope_mode
+        # Maintain backward compatibility: use 'token.pickle' for readonly mode
+        if scope_mode == 'readonly':
+            self.token_file = 'config/token.pickle'
+        else:
+            self.token_file = f'config/token_{scope_mode}.pickle'
         self.credentials = None
+
+        # Set appropriate scopes based on mode
+        if scope_mode == 'captions':
+            self.scopes = SCOPES_CAPTIONS
+        else:
+            self.scopes = SCOPES_READONLY
         
     def authenticate(self, force_refresh=False):
         """Authenticate with YouTube API using OAuth2"""
@@ -44,7 +62,7 @@ class YouTubeAuth:
                     self._create_credentials_file()
 
                 flow = InstalledAppFlow.from_client_secrets_file(
-                    self.credentials_file, SCOPES)
+                    self.credentials_file, self.scopes)
                 self.credentials = flow.run_local_server(port=0)
 
             # Save the credentials for the next run

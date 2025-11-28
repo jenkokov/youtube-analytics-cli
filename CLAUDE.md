@@ -55,6 +55,11 @@ uv run youtube-analytics update-shows           # Apply changes
 uv run youtube-analytics list-patterns          # View regex patterns
 uv run youtube-analytics test-pattern "DOU News #123"  # Test title
 
+# Caption downloads (default: plain text transcripts)
+uv run youtube-analytics download-captions --video-ids 'abc123,def456' -v
+uv run youtube-analytics download-captions --video-ids 'abc123' --format vtt  # VTT with timestamps
+uv run youtube-analytics download-captions --video-ids 'abc123' --output-dir exports/captions
+
 # Interactive dashboard
 uv run python run_dashboard.py                  # Launch Streamlit dashboard
 uv run streamlit run streamlit_app.py           # Alternative launch method
@@ -82,11 +87,13 @@ cp .env.example .env
 - `update-shows`: Maps show names and episode numbers using regex patterns from config
 - `list-patterns`: Shows all configured regex patterns for show/episode mapping
 - `test-pattern`: Tests a video title against all configured patterns
+- `download-captions`: Downloads captions for specified videos in various formats
 
 **`auth.py`** - OAuth2 authentication handler:
 - Manages Google Cloud Console credentials via environment variables or JSON files
-- Handles token caching in `config/token.pickle`
-- Supports both YouTube Data API v3 and YouTube Analytics API scopes
+- Handles token caching with separate files for different scope modes
+- Supports both YouTube Data API v3 and YouTube Analytics API scopes (readonly mode)
+- Supports YouTube Captions API with youtube.force-ssl scope (captions mode)
 
 **`youtube_client.py`** - YouTube API client wrapper:
 - Implements pagination for large video collections (auto-handles 50-video API limits)
@@ -105,6 +112,14 @@ cp .env.example .env
 - Extracts show names and episode numbers from video titles
 - Updates database with mapped show/episode information
 - Provides dry-run mode and detailed processing statistics
+
+**`caption_downloader.py`** - Caption download system:
+- Downloads auto-generated or manual captions from YouTube videos
+- Supports multiple formats: TXT (plain text - default), VTT, SRT, SBV
+- Extracts clean transcripts without timing information for text analysis
+- Sanitizes video titles for filesystem compatibility
+- Batch processing with detailed progress tracking and error handling
+- Owner-only restriction (YouTube API limitation)
 
 **`streamlit_app.py`** - Interactive web dashboard:
 - Streamlit-based web application for data visualization
@@ -186,6 +201,82 @@ show_patterns:
 - `dry_run`: Preview mode without database changes
 - `verbose`: Show detailed progress output
 
+## Caption Downloads
+
+The system supports downloading captions (subtitles) from YouTube videos using the YouTube Data API v3 Captions endpoint.
+
+### Features
+- **Batch Downloads**: Download captions for multiple videos at once using comma-separated IDs
+- **Multiple Formats**: Support for plain text (TXT), VTT (WebVTT), SRT (SubRip), and SBV formats
+- **Plain Text Default**: By default, downloads clean transcripts without timing information (ideal for analysis)
+- **Language Selection**: Target specific languages (default: Ukrainian 'uk')
+- **Auto-Generated Captions**: Downloads ASR (automatic speech recognition) captions
+- **Smart Filename Handling**: Sanitizes video titles and includes video ID for uniqueness
+- **Progress Tracking**: Verbose mode shows detailed progress for each video
+
+### Usage
+```bash
+# Download Ukrainian transcripts for multiple videos (plain text - default)
+uv run youtube-analytics download-captions --video-ids 'abc123,def456,ghi789' -v
+
+# Download with timestamps in VTT format
+uv run youtube-analytics download-captions --video-ids 'abc123' --format vtt
+
+# Download in SRT format
+uv run youtube-analytics download-captions --video-ids 'abc123' --format srt
+
+# Download captions in different language
+uv run youtube-analytics download-captions --video-ids 'abc123' --language en
+
+# Custom output directory
+uv run youtube-analytics download-captions --video-ids 'abc123' --output-dir exports/captions
+```
+
+### Authentication
+Caption downloads require **separate authentication** with the `youtube.force-ssl` scope, which grants broader permissions than the standard readonly scope. You will be prompted to authenticate when running the caption download command for the first time. This creates a separate token file (`config/token_captions.pickle`) that is used exclusively for caption operations.
+
+### Important Limitations
+- **Owner-Only Access**: You can only download captions from videos you own (YouTube API restriction)
+- **Caption Availability**: Not all videos have auto-generated captions in all languages
+- **API Quota**: Caption downloads count toward your YouTube API quota
+
+### File Naming Convention
+Downloaded caption files follow this pattern:
+```
+{sanitized_video_title}_{video_id}.{format}
+```
+
+For example:
+- `My_Video_Title_abc123xyz.txt` (plain text transcript - default)
+- `My_Video_Title_abc123xyz.vtt` (with timestamps)
+- `DOU_News_Episode_42_def456uvw.srt` (SubRip format)
+
+Special characters in video titles (`/ \ : * ? " < > |`) are replaced with underscores, and titles are truncated to 200 characters if necessary.
+
+### Format Details
+
+**TXT (Plain Text) - Default**:
+- Clean transcript without timing information
+- Ideal for text analysis, translation, or content review
+- Smaller file size compared to formatted captions
+- Extracts only the spoken text from the video
+
+**VTT (WebVTT)**:
+- Includes timestamps for each caption segment
+- Web-standard format for video players
+- Contains timing information: `00:00:01.000 --> 00:00:03.500`
+
+**SRT (SubRip)** and **SBV (YouTube)**:
+- Alternative formats with timing information
+- Compatible with various video editing tools
+
+### Error Handling
+The tool handles various error scenarios gracefully:
+- **No Captions Available**: Skips the video and continues with others
+- **Permission Denied**: Shows clear message about owner-only restriction
+- **Already Downloaded**: Skips existing files (no overwrite by default)
+- **Network Errors**: Reports failures but continues batch processing
+
 ## Interactive Dashboard
 
 The system includes a web-based dashboard built with Streamlit for interactive data visualization and analysis.
@@ -225,6 +316,7 @@ uv run streamlit run streamlit_app.py
 
 - **Database**: `data/youtube_analytics.sqlite`
 - **CSV Exports**: `data/exports/*.csv`
-- **Auth Tokens**: `config/token.pickle`
+- **Captions**: `data/captions/*.txt` (plain text transcripts - default), or `*.vtt`, `*.srt`, `*.sbv` (with timestamps)
+- **Auth Tokens**: `config/token.pickle` (analytics), `config/token_captions.pickle` (caption downloads)
 - **Credentials**: `config/credentials.json` (auto-generated from env vars)
 - **Show Patterns**: `config/show_patterns.yaml`
