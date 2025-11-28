@@ -116,6 +116,39 @@ uv run youtube-analytics update-shows
 
 Edit `config/show_patterns.yaml` to customize regex patterns for your shows.
 
+### Download Captions
+Download captions (subtitles) from your videos in multiple formats:
+
+```bash
+# Download plain text transcripts (default - ideal for analysis)
+uv run youtube-analytics download-captions --video-ids 'abc123,def456,ghi789' -v
+
+# Download with timestamps in VTT format
+uv run youtube-analytics download-captions --video-ids 'abc123' --format vtt
+
+# Download in SRT format
+uv run youtube-analytics download-captions --video-ids 'abc123' --format srt
+
+# Download captions in different language
+uv run youtube-analytics download-captions --video-ids 'abc123' --language en
+
+# Custom output directory
+uv run youtube-analytics download-captions --video-ids 'abc123' --output-dir exports/captions
+```
+
+**Key Features:**
+- **Plain Text Default**: Downloads clean transcripts without timestamps (ideal for text analysis)
+- **Multiple Formats**: Supports TXT (plain text), VTT, SRT, and SBV formats
+- **Batch Processing**: Download captions for multiple videos at once
+- **Smart Skipping**: Automatically skips already-downloaded files to save API quota
+- **Failed IDs Output**: Shows failed video IDs in CSV format for easy retry
+- **Auto-Generated Captions**: Downloads ASR (automatic speech recognition) captions
+
+**Important Notes:**
+- Caption downloads require separate authentication with elevated permissions (`youtube.force-ssl` scope)
+- You can only download captions from videos you own (YouTube API restriction)
+- Captions are saved to `data/captions/` directory by default
+
 ## Interactive Dashboard 🎯
 
 Launch a web-based dashboard for interactive data visualization and analysis:
@@ -167,6 +200,13 @@ uv run streamlit run streamlit_app.py
 - `title`: Video title to test against patterns
 - `--config-file`: Use custom pattern configuration file
 
+#### `download-captions` command:
+- `--video-ids`: Comma-separated list of video IDs (required)
+- `--language`: Caption language code (default: `uk` for Ukrainian)
+- `--format`: Caption format - `txt` (plain text), `vtt`, `srt`, or `sbv` (default: `txt`)
+- `--output-dir`: Directory to save caption files (default: `data/captions`)
+- `-v, --verbose`: Show detailed progress for each video
+
 #### Global options:
 - `--config-dir`: Custom configuration directory (default: `config`)
 - `--data-dir`: Custom data storage directory (default: `data`)
@@ -175,12 +215,18 @@ uv run streamlit run streamlit_app.py
 
 Data is stored locally in:
 - **SQLite Database**: `data/youtube_analytics.sqlite`
-- **CSV Exports**: 
+- **CSV Exports**:
   - `data/exports/channel_stats.csv`
   - `data/exports/video_stats.csv`
   - `data/exports/traffic_sources.csv`
-- **Configuration**: 
-  - `config/token.pickle` (auth tokens)
+- **Captions**:
+  - `data/captions/*.txt` (plain text transcripts - default)
+  - `data/captions/*.vtt` (WebVTT format with timestamps)
+  - `data/captions/*.srt` (SubRip format)
+  - `data/captions/*.sbv` (YouTube format)
+- **Configuration**:
+  - `config/token.pickle` (auth tokens for analytics)
+  - `config/token_captions.pickle` (auth tokens for caption downloads)
   - `config/credentials.json` (auto-generated)
   - `config/show_patterns.yaml` (regex patterns for show mapping)
 
@@ -201,24 +247,27 @@ Each video record includes:
 youtube-analytics-cli/
 ├── src/youtube_analytics/
 │   ├── __init__.py
-│   ├── auth.py          # OAuth2 authentication
-│   ├── cli.py           # Command-line interface  
-│   ├── data_storage.py  # CSV/SQLite storage
-│   ├── youtube_client.py # YouTube API client
-│   └── show_mapper.py   # Show/episode regex mapping
-├── config/              # Authentication and patterns (auto-created)
+│   ├── auth.py            # OAuth2 authentication (dual-scope support)
+│   ├── cli.py             # Command-line interface
+│   ├── data_storage.py    # CSV/SQLite storage
+│   ├── youtube_client.py  # YouTube API client
+│   ├── show_mapper.py     # Show/episode regex mapping
+│   └── caption_downloader.py # Caption download system
+├── config/                # Authentication and patterns (auto-created)
 │   ├── show_patterns.yaml # Regex patterns for show mapping
-│   ├── token.pickle     # OAuth tokens (auto-generated)
-│   └── credentials.json # API credentials (auto-generated)
-├── data/               # Local data storage (auto-created)
+│   ├── token.pickle       # OAuth tokens for analytics (auto-generated)
+│   ├── token_captions.pickle # OAuth tokens for captions (auto-generated)
+│   └── credentials.json   # API credentials (auto-generated)
+├── data/                  # Local data storage (auto-created)
 │   ├── youtube_analytics.sqlite # Main database
-│   └── exports/        # CSV export files
-├── streamlit_app.py    # Interactive web dashboard
-├── run_dashboard.py    # Dashboard launcher script
-├── venv/               # Virtual environment
-├── requirements.txt    # Python dependencies
-├── .env                # Your credentials (create from .env.example)
-├── .env.example        # Template for environment variables
+│   ├── captions/          # Downloaded caption files
+│   └── exports/           # CSV export files
+├── streamlit_app.py       # Interactive web dashboard
+├── run_dashboard.py       # Dashboard launcher script
+├── venv/                  # Virtual environment
+├── requirements.txt       # Python dependencies
+├── .env                   # Your credentials (create from .env.example)
+├── .env.example           # Template for environment variables
 ├── .gitignore
 └── README.md
 ```
@@ -226,14 +275,18 @@ youtube-analytics-cli/
 ## Features
 
 ### Data Collection
-✅ **Channel Statistics**: Subscriber count, total views, video count  
-✅ **Video Statistics**: Individual video metrics with traffic sources  
-✅ **Duration Tracking**: Video duration stored in seconds for analysis  
-✅ **Thumbnail Collection**: Highest quality thumbnail URLs (maxres preferred)  
-✅ **Visibility Tracking**: Public, private, unlisted status detection  
-✅ **YouTube Shorts**: Automatic detection of short-form content  
-✅ **Traffic Sources**: Where your views come from (search, suggested, etc.)  
+✅ **Channel Statistics**: Subscriber count, total views, video count
+✅ **Video Statistics**: Individual video metrics with traffic sources
+✅ **Duration Tracking**: Video duration stored in seconds for analysis
+✅ **Thumbnail Collection**: Highest quality thumbnail URLs (maxres preferred)
+✅ **Visibility Tracking**: Public, private, unlisted status detection
+✅ **YouTube Shorts**: Automatic detection of short-form content
+✅ **Traffic Sources**: Where your views come from (search, suggested, etc.)
 ✅ **Dislike Counts**: Available for authenticated video owners
+✅ **Caption Download**: Extract transcripts in multiple formats (TXT, VTT, SRT, SBV)
+✅ **Text Extraction**: Clean plain text transcripts without timestamps or formatting
+✅ **Batch Processing**: Download captions for multiple videos efficiently
+✅ **Smart Caching**: Automatically skip already-downloaded files to save API quota
 
 ## Quick Start Guide
 
@@ -251,10 +304,12 @@ youtube-analytics-cli/
 - Check that YouTube Data API v3 and YouTube Analytics API are enabled in Google Cloud Console
 - Verify your OAuth2 client is configured for "Desktop Application"
 - Add yourself as a test user if your app is in "Testing" mode
+- Caption downloads require separate authentication - you'll be prompted on first use
 
 ### Permission Errors
 - Ensure you have read/write permissions in the project directory
 - The tool will create `config/` and `data/` directories automatically
+- Caption downloads only work for videos you own (YouTube API restriction)
 
 ### Dashboard Issues
 - **"No data available"**: Run `uv run youtube-analytics video-stats` command first to collect data
@@ -262,8 +317,16 @@ youtube-analytics-cli/
 - **Port conflicts**: Dashboard runs on localhost:8501 by default
 - **Streamlit not found**: Run `uv sync` to install dependencies
 
+### Caption Download Issues
+- **"No captions found"**: Not all videos have auto-generated captions in all languages
+- **"Permission denied"**: You can only download captions from videos you own
+- **API quota exceeded**: Caption downloads count toward your YouTube API quota
+- **Already downloaded**: Use the failed IDs CSV output to retry only failed videos
+- **Duplicate lines in transcript**: Fixed in latest version - plain text now has clean deduplication
+
 ### Performance Notes
 - Use `--no-analytics` flag to skip traffic source data for faster processing
 - Use `-v` flag to monitor progress when processing many videos
 - Database automatically handles updates - existing videos are refreshed with new stats
 - Dashboard filters data in real-time - larger datasets may take longer to load
+- Caption downloads automatically skip existing files to save API quota
